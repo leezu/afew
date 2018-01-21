@@ -9,6 +9,7 @@ from __future__ import print_function, absolute_import, unicode_literals
 
 from .BaseFilter import Filter
 
+import itertools
 import re
 
 
@@ -16,6 +17,7 @@ class HeaderMatchingFilter(Filter):
     message = 'Tagging based on specific header values matching a given RE'
     header = None
     pattern = None
+    splitmatch = None
 
     def __init__(self, database, **kwargs):
         super(HeaderMatchingFilter, self).__init__(database, **kwargs)
@@ -28,7 +30,15 @@ class HeaderMatchingFilter(Filter):
                 value = message.get_header(self.header)
                 match = self.pattern.search(value)
                 if match:
-                    sub = (lambda tag:
-                        tag.format(**match.groupdict()).lower())
-                    self.remove_tags(message, *map(sub, self._tags_to_remove))
-                    self.add_tags(message, *map(sub, self._tags_to_add))
+                    if self.splitmatch is not None:
+                        sub = (lambda tag:
+                               tag.format(**match.groupdict()).lower().split(self.splitmatch))
+                    else:
+                        sub = (lambda tag:
+                               [tag.format(**match.groupdict()).lower()])
+                    self.remove_tags(
+                        message,
+                        *itertools.chain(*map(sub, self._tags_to_remove)))
+                    self.add_tags(
+                        message,
+                        *itertools.chain(*map(sub, self._tags_to_add)))
